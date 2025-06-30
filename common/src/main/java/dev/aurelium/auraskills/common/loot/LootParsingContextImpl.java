@@ -9,6 +9,7 @@ import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -25,7 +26,17 @@ public class LootParsingContextImpl implements LootParsingContext {
         ConfigurationNode config = ((ApiConfigNode) apiConfig).getBacking();
         int weight = config.node("weight").getInt(10);
         String message = config.node("message").getString("");
-        return new LootValues(weight, message, parseContexts(config), parseOptions(config));
+        List<ConfigurationNode> requirements = null;
+
+        if (config.hasChild("requirements")) {
+            try {
+                requirements = config.node("requirements").getList(ConfigurationNode.class);
+            } catch (SerializationException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        return new LootValues(weight, message, parseContexts(config), parseOptions(config), ApiConfigNode.toApi(requirements));
     }
 
     public Map<String, Set<LootContext>> parseContexts(ConfigurationNode config) {

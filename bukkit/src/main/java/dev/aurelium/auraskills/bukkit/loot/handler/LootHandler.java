@@ -5,12 +5,14 @@ import dev.aurelium.auraskills.api.event.loot.LootDropEvent.Cause;
 import dev.aurelium.auraskills.api.loot.*;
 import dev.aurelium.auraskills.api.skill.Skill;
 import dev.aurelium.auraskills.api.source.XpSource;
+import dev.aurelium.auraskills.api.user.SkillsUser;
 import dev.aurelium.auraskills.bukkit.AuraSkills;
 import dev.aurelium.auraskills.bukkit.hooks.WorldGuardFlags.FlagKey;
 import dev.aurelium.auraskills.bukkit.hooks.WorldGuardHook;
 import dev.aurelium.auraskills.bukkit.loot.context.MobContext;
 import dev.aurelium.auraskills.bukkit.loot.type.EntityLoot;
 import dev.aurelium.auraskills.bukkit.loot.type.ItemLoot;
+import dev.aurelium.auraskills.bukkit.requirement.RequirementCheck;
 import dev.aurelium.auraskills.bukkit.util.ItemUtils;
 import dev.aurelium.auraskills.common.commands.CommandExecutor;
 import dev.aurelium.auraskills.common.hooks.PlaceholderHook;
@@ -159,9 +161,12 @@ public abstract class LootHandler extends AbstractLootHandler {
     }
 
     @Nullable
-    protected Loot selectLoot(LootPool pool, @NotNull LootContext providedContext) {
+    protected Loot selectLoot(LootPool pool, @NotNull LootContext providedContext, SkillsUser skillsUser) {
         return pool.rollLoot(loot -> {
-            if (providedContext instanceof SourceContext(XpSource providedSource)) {
+            if (loot.hasRequirements() && RequirementCheck.failed(loot.getRequirements(), skillsUser)) {
+                return false;
+            } else if (providedContext instanceof SourceContext(XpSource providedSource)) {
+
                 Set<LootContext> lootContexts = loot.getValues().getContexts().get("sources");
                 // Make sure the loot defines a sources context and the provided context exists
                 if (lootContexts != null && providedSource != null) {

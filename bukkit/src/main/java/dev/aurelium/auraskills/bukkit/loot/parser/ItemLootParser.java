@@ -34,7 +34,7 @@ public class ItemLootParser implements LootParser {
     }
 
     @Override
-    public Loot parse(LootParsingContext context, ConfigNode config) {
+    public Loot parse(LootParsingContext context, ConfigNode config, List<ConfigNode> requirements) {
         ItemSupplier item = null;
         ConfigurationNode backing = ((ApiConfigNode) config).getBacking();
         for (CustomItemParser parser : manager.getCustomItemParsers()) {
@@ -56,7 +56,7 @@ public class ItemLootParser implements LootParser {
         int[] amounts = parseAmount(backing);
         double[] durability = parseDurability(backing);
 
-        return new ItemLoot(context.parseValues(config), item, amounts[0], amounts[1], durability[0], durability[1]);
+        return new ItemLoot(context.parseValues(config), item, amounts[0], amounts[1], durability[0], durability[1], requirements);
     }
 
     private ItemSupplier parseItem(ConfigurationNode config) throws SerializationException {
