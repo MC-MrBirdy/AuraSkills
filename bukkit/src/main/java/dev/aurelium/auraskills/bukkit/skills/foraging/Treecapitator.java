@@ -1,5 +1,6 @@
 package dev.aurelium.auraskills.bukkit.skills.foraging;
 
+import com.sk89q.worldedit.WorldEdit;
 import dev.aurelium.auraskills.api.mana.ManaAbilities;
 import dev.aurelium.auraskills.api.registry.NamespacedId;
 import dev.aurelium.auraskills.api.source.XpSource;
@@ -9,7 +10,10 @@ import dev.aurelium.auraskills.bukkit.mana.ReadiedManaAbility;
 import dev.aurelium.auraskills.bukkit.source.BlockLeveler;
 import dev.aurelium.auraskills.bukkit.util.BlockFaceUtil;
 import dev.aurelium.auraskills.common.message.type.ManaAbilityMessage;
+import dev.aurelium.auraskills.common.source.SourceTag;
+import dev.aurelium.auraskills.common.source.type.BlockSource;
 import dev.aurelium.auraskills.common.user.User;
+import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -43,10 +47,15 @@ public class Treecapitator extends ReadiedManaAbility {
     }
 
     @Override
-    protected boolean materialMatches(String checked) {
-        // Don't ready world edit axe
-        if (checked.equals("WOODEN_AXE") || checked.equals("WOOD_AXE")) {
-            if (plugin.getServer().getPluginManager().isPluginEnabled("WorldEdit")) {
+    protected boolean materialMatches(String checked, Player player) {
+        // Don't ready WorldEdit axe if WorldEdit is available and the player has permission for the wand.
+        if (plugin.getServer().getPluginManager().isPluginEnabled("WorldEdit") && player.hasPermission("worldedit.wand")) {
+            String wandItem = WorldEdit.getInstance().getConfiguration().wandItem;
+            String wandString = wandItem.contains(":") ? wandItem.split(":")[1] : wandItem;
+            Material wandMaterial = Material.matchMaterial(wandString.toUpperCase(Locale.ROOT));
+            Material checkMaterial = Material.matchMaterial(checked.toUpperCase(Locale.ROOT));
+
+            if (wandMaterial == checkMaterial) {
                 return false;
             }
         }
@@ -69,8 +78,11 @@ public class Treecapitator extends ReadiedManaAbility {
             return;
         }
 
-        BlockXpSource source = getSource(block);
-        if (isTrunk(source) || block.getType().toString().contains("STRIPPED")) {
+        BlockXpSource source = getNonStrippedSource(block);
+        if (source == null) {
+            return;
+        }
+        if (plugin.getSkillManager().hasTag(source, SourceTag.TRUNKS)) {
             Player player = event.getPlayer();
 
             if (failsChecks(player)) return;
@@ -88,7 +100,7 @@ public class Treecapitator extends ReadiedManaAbility {
     }
 
     public void breakTree(User user, Block block, BlockXpSource source) {
-        breakBlock(user, block, new TreecapitatorTree(plugin, block, source));
+        breakBlock(user, block, new TreecapitatorTree(block, source));
     }
 
     private void breakBlock(User user, Block block, TreecapitatorTree tree) {
@@ -97,9 +109,7 @@ public class Treecapitator extends ReadiedManaAbility {
         }
         for (Block adjacentBlock : BlockFaceUtil.getSurroundingBlocks(block)) {
             BlockXpSource adjSource = getSource(adjacentBlock);
-            boolean isTrunk = isTrunk(adjSource);
-            boolean isLeaf = isLeaf(adjSource);
-            if (!isTrunk && !isLeaf && !adjacentBlock.getType().toString().equals("SHROOMLIGHT"))
+            if (!plugin.getSkillManager().hasTag(adjSource, SourceTag.TREECAPITATOR_APPLICABLE))
                 continue; // Check block is leaf or trunk
             // Make sure block was not placed
             if (plugin.getRegionManager().isPlacedBlock(adjacentBlock)) {
@@ -121,6 +131,24 @@ public class Treecapitator extends ReadiedManaAbility {
     }
 
     @Nullable
+    private BlockXpSource getNonStrippedSource(Block block) {
+        String target = block.getType().toString();
+        if (target.contains("STRIPPED")) {
+            String blockOrigin = target.replace("STRIPPED_", "");
+            Material newTarget = Material.matchMaterial(blockOrigin);
+            if (newTarget != null && newTarget.isBlock()) {
+                XpSource newSource = plugin.getSkillManager().getSourceById(NamespacedId.fromDefault(newTarget.toString().toLowerCase(Locale.ROOT)));
+                if (newSource instanceof BlockXpSource blockXpSource) {
+                    return blockXpSource;
+                }
+            }
+        } else {
+            return getSource(block);
+        }
+        return null;
+    }
+
+    @Nullable
     private BlockXpSource getSource(Block block) {
         var skillSource = plugin.getLevelManager().getLeveler(BlockLeveler.class).getSource(block, BlockXpSource.BlockTriggers.BREAK);
 
@@ -130,23 +158,13 @@ public class Treecapitator extends ReadiedManaAbility {
         return null;
     }
 
-    private boolean isTrunk(BlockXpSource source) {
-        return source != null && source.isTrunk();
-    }
-
-    private boolean isLeaf(BlockXpSource source) {
-        return source != null && source.isLeaf();
-    }
-
     private static class TreecapitatorTree {
 
-        private final AuraSkills plugin;
         private final Block originalBlock;
         private int blocksBroken;
         private int maxBlocks;
 
-        public TreecapitatorTree(AuraSkills plugin, Block originalBlock, BlockXpSource source) {
-            this.plugin = plugin;
+        public TreecapitatorTree(Block originalBlock, BlockXpSource source) {
             this.originalBlock = originalBlock;
             setMaxBlocks(source);
         }
@@ -167,36 +185,10 @@ public class Treecapitator extends ReadiedManaAbility {
             return maxBlocks;
         }
 
-        private void setMaxBlocks(XpSource source) {
-            String matName = originalBlock.getType().toString();
-            if (source == null && matName.contains("STRIPPED")) {
-                String[] woodNames = new String[]{"OAK", "SPRUCE", "BIRCH", "JUNGLE", "ACACIA", "DARK_OAK", "CRIMSON", "WARPED", "MANGROVE", "CHERRY"};
-                for (String woodName : woodNames) {
-                    if (matName.contains(woodName)) {
-                        if (woodName.equals("CRIMSON") || woodName.equals("WARPED")) {
-                            source = plugin.getSkillManager().getSourceById(NamespacedId.fromDefault(woodName.toLowerCase(Locale.ROOT) + "_stem"));
-                        } else {
-                            source = plugin.getSkillManager().getSourceById(NamespacedId.fromDefault(woodName.toLowerCase(Locale.ROOT) + "_log"));
-                        }
-                        break;
-                    }
-                }
-            }
-            if (source != null) {
-                if (matName.contains("OAK") || matName.contains("BIRCH") || matName.contains("ACACIA") || matName.contains("CHERRY")) {
-                    maxBlocks = 100;
-                } else if (matName.contains("SPRUCE") || matName.contains("CRIMSON") || matName.contains("WARPED") || matName.contains("MANGROVE")) {
-                    maxBlocks = 125;
-                } else if (matName.contains("JUNGLE")) {
-                    maxBlocks = 220;
-                } else if (matName.contains("DARK_OAK")) {
-                    maxBlocks = 150;
-                }
-            } else {
-                maxBlocks = 100;
-            }
+        private void setMaxBlocks(BlockXpSource source) {
+            int maxBlocks = (source != null && source.getMaxBlocks() >= 1) ? source.getMaxBlocks() : BlockSource.DEFAULT_MAX_BLOCKS;
             double multiplier = ManaAbilities.TREECAPITATOR.optionDouble("max_blocks_multiplier", 1.0);
-            maxBlocks = (int) (maxBlocks * multiplier);
+            this.maxBlocks = (int) (maxBlocks * multiplier);
         }
 
     }

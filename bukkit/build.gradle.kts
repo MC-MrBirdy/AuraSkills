@@ -29,6 +29,7 @@ repositories {
     maven("https://maven.enginehub.org/repo/")
     maven("https://repo.nexomc.com/snapshots/")
     maven("https://repo.nexomc.com/releases/")
+    maven("https://repo.papermc.io/repository/maven-public/")
     mavenLocal()
 }
 
@@ -36,7 +37,7 @@ dependencies {
     implementation(project(":common"))
     implementation(project(":api-bukkit"))
     implementation("co.aikar:acf-paper:0.5.1-SNAPSHOT")
-    implementation("de.tr7zw:item-nbt-api:2.15.1-SNAPSHOT")
+    implementation("de.tr7zw:item-nbt-api:2.15.1")
     implementation("org.bstats:bstats-bukkit:3.0.2")
     implementation("net.kyori:adventure-text-minimessage:4.16.0")
     implementation("net.kyori:adventure-platform-bukkit:4.3.3")
@@ -57,9 +58,20 @@ dependencies {
     compileOnly("com.github.Slimefun:Slimefun4:RC-37")
     compileOnly("io.lumine:Mythic-Dist:5.6.1")
     compileOnly("com.nexomc:nexo:1.6.0")
+    testImplementation(testFixtures(project(":common")))
+    testImplementation("org.mockbukkit.mockbukkit:mockbukkit-v1.21:4.59.0")
+    testImplementation("org.slf4j:slf4j-simple:2.0.17")
+    testImplementation(platform("org.junit:junit-bom:5.13.2"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 val compiler = javaToolchains.compilerFor {
+    languageVersion = JavaLanguageVersion.of(21)
+}
+
+val jetbrainsLauncher = javaToolchains.launcherFor {
+    vendor = JvmVendorSpec.JETBRAINS
     languageVersion = JavaLanguageVersion.of(21)
 }
 
@@ -119,8 +131,17 @@ tasks {
         }
     }
 
+    withType(xyz.jpenilla.runtask.task.AbstractRun::class) {
+        javaLauncher = jetbrainsLauncher
+        jvmArgs("-XX:+AllowEnhancedClassRedefinition")
+    }
+
     runServer {
-        minecraftVersion("1.21.6")
+        minecraftVersion("1.21.7")
+    }
+
+    test {
+        useJUnitPlatform()
     }
 }
 

@@ -93,6 +93,7 @@ import dev.aurelium.auraskills.common.storage.sql.SqlStorageProvider;
 import dev.aurelium.auraskills.common.trait.TraitRegistry;
 import dev.aurelium.auraskills.common.user.User;
 import dev.aurelium.auraskills.common.util.PlatformUtil;
+import dev.aurelium.auraskills.common.util.TestSession;
 import dev.aurelium.auraskills.common.util.file.FileUtil;
 import dev.aurelium.slate.Slate;
 import dev.aurelium.slate.inv.InventoryManager;
@@ -105,11 +106,15 @@ import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.VisibleForTesting;
 import org.spongepowered.configurate.ConfigurationNode;
 
 import java.io.File;
 import java.io.InputStream;
 import java.util.Locale;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import static dev.aurelium.auraskills.bukkit.ref.BukkitPlayerRef.unwrap;
 
@@ -162,6 +167,25 @@ public class AuraSkills extends JavaPlugin implements AuraSkillsPlugin {
     private PlatformUtil platformUtil;
     private BukkitAntiAfkManager antiAfkManager;
     private boolean nbtApiEnabled;
+    // For unit tests
+    private final boolean isMock;
+    private final TestSession testSession;
+
+    public AuraSkills() {
+        this.isMock = false;
+        this.testSession = TestSession.create();
+    }
+
+    public AuraSkills(TestSession testSession) {
+        this.isMock = true;
+        this.testSession = testSession;
+        // Suppress INFO level logging for tests
+        Logger root = Logger.getLogger("");
+        root.setLevel(Level.WARNING);
+        for (Handler h : root.getHandlers()) {
+            h.setLevel(Level.WARNING);
+        }
+    }
 
     @Override
     public void onEnable() {
@@ -208,7 +232,7 @@ public class AuraSkills extends JavaPlugin implements AuraSkillsPlugin {
         MigrationManager migrationManager = new MigrationManager(this);
         migrationManager.attemptConfigMigration();
         // Load config.yml file
-        configProvider = new BukkitConfigProvider(this);
+        configProvider = new BukkitConfigProvider(this, testSession.configOverrides());
         configProvider.loadOptions(); // Also loads external plugin hooks
         initializeNbtApi();
         initializeMenus(); // Generate menu files
@@ -234,11 +258,18 @@ public class AuraSkills extends JavaPlugin implements AuraSkillsPlugin {
         messageProvider.setACFMessages(commandManager);
         levelManager = new BukkitLevelManager(this);
         antiAfkManager = new BukkitAntiAfkManager(this); // Requires config loaded
+        antiAfkManager.registerChecks();
         registerPriorityEvents();
         // Enabled bStats
-        Metrics metrics = new Metrics(this, 21318);
+        @Nullable Metrics metrics;
+        try {
+            metrics = new Metrics(this, 21318);
+        } catch (IllegalStateException ignored) {
+            metrics = null;
+        }
 
         // Stuff to be run on the first tick
+        @Nullable Metrics finalMetrics = metrics;
         scheduler.executeSync(() -> {
             loadSkills(); // Load skills, stats, abilities, etc from configs
             levelManager.registerLevelers(); // Requires skills loaded
@@ -261,7 +292,9 @@ public class AuraSkills extends JavaPlugin implements AuraSkillsPlugin {
             leaderboardManager.startLeaderboardUpdater(); // 5 minute interval
             statManager.scheduleTemporaryModifierTask();
             // bStats custom charts
-            new MetricsUtil(getInstance()).registerCustomCharts(metrics);
+            if (finalMetrics != null) {
+                new MetricsUtil(getInstance()).registerCustomCharts(finalMetrics);
+            }
 
             if (this.configBoolean(Option.CHECK_FOR_UPDATES)) {
                 UpdateChecker updateChecker = new UpdateChecker(this);
@@ -377,6 +410,7 @@ public class AuraSkills extends JavaPlugin implements AuraSkillsPlugin {
 
     private void initializeNbtApi() {
         // Check if NBT API is supported for the version
+        MinecraftVersion.disablePackageWarning();
         if (MinecraftVersion.getVersion() == MinecraftVersion.UNKNOWN) {
             getLogger().warning("NBT API is not yet supported for your Minecraft version, some legacy conversion and item nbt parsing functionality may be disabled!");
             nbtApiEnabled = false;
@@ -387,7 +421,7 @@ public class AuraSkills extends JavaPlugin implements AuraSkillsPlugin {
 
     private void registerAndLoadMenus() {
         new MenuRegistrar(this).register();
-        menuFileManager.loadMenus();
+        menuFileManager.loadMenusOnStartup();
     }
 
     private void initStorageProvider() {
@@ -455,10 +489,6 @@ public class AuraSkills extends JavaPlugin implements AuraSkillsPlugin {
 
     public ConfirmManager getConfirmManager() {
         return confirmManager;
-    }
-
-    public BukkitAntiAfkManager getAntiAfkManager() {
-        return antiAfkManager;
     }
 
     public AuraSkillsBukkit getApiBukkit() {
@@ -595,6 +625,11 @@ public class AuraSkills extends JavaPlugin implements AuraSkillsPlugin {
         return scheduler;
     }
 
+    @VisibleForTesting
+    public void setScheduler(Scheduler scheduler) {
+        this.scheduler = scheduler;
+    }
+
     @Override
     public StorageProvider getStorageProvider() {
         return storageProvider;
@@ -638,6 +673,11 @@ public class AuraSkills extends JavaPlugin implements AuraSkillsPlugin {
     @Override
     public BukkitModifierManager getModifierManager() {
         return modifierManager;
+    }
+
+    @Override
+    public BukkitAntiAfkManager getAntiAfkManager() {
+        return antiAfkManager;
     }
 
     @Override
@@ -724,6 +764,10 @@ public class AuraSkills extends JavaPlugin implements AuraSkillsPlugin {
 
     private AuraSkills getInstance() {
         return this;
+    }
+
+    public boolean isMock() {
+        return isMock;
     }
 
 }
