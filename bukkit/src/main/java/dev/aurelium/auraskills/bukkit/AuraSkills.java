@@ -25,6 +25,7 @@ import dev.aurelium.auraskills.bukkit.jobs.JobsListener;
 import dev.aurelium.auraskills.bukkit.leaderboard.BukkitLeaderboardExclusion;
 import dev.aurelium.auraskills.bukkit.level.BukkitLevelManager;
 import dev.aurelium.auraskills.bukkit.listeners.BlockInteractions;
+import dev.aurelium.auraskills.bukkit.level.XpLimiter;
 import dev.aurelium.auraskills.bukkit.listeners.CriticalHandler;
 import dev.aurelium.auraskills.bukkit.listeners.DamageListener;
 import dev.aurelium.auraskills.bukkit.listeners.PlayerDeath;
@@ -456,6 +457,7 @@ public class AuraSkills extends JavaPlugin implements AuraSkillsPlugin {
         pm.registerEvents(new RegionBlockListener(this), this);
         pm.registerEvents(new PlayerDeath(this), this);
         pm.registerEvents(new JobsListener(this), this);
+        pm.registerEvents(new XpLimiter(this), this);
         pm.registerEvents(((BukkitLeaderboardExclusion) leaderboardManager.getLeaderboardExclusion()), this);
     }
 
