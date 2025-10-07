@@ -26,10 +26,10 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.command.RemoteConsoleCommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 @CommandAlias("%skills_alias")
 public class SkillsRootCommand extends BaseCommand {
@@ -185,13 +185,23 @@ public class SkillsRootCommand extends BaseCommand {
     @Subcommand("updateleaderboards")
     @CommandPermission("auraskills.command.updateleaderboards")
     @Description("%desc_updateleaderboards")
-    public void onUpdateLeaderboards(CommandSender sender) {
+    public void onUpdateLeaderboards(CommandSender sender, @Default("1") int samples) {
         Locale locale = plugin.getLocale(sender);
         if (plugin.getLeaderboardManager().isNotSorting()) {
             plugin.getScheduler().executeAsync(() -> {
-                plugin.getLeaderboardManager().updateLeaderboards();
+                long sum = 0;
+                for (int i = 0; i < samples; i++) {
+                    long timeMs = plugin.getLeaderboardManager().updateLeaderboards();
+                    sum += timeMs;
+                }
+                double avg = sum / (double) samples;
 
-                plugin.getScheduler().executeSync(() -> sender.sendMessage(plugin.getPrefix(locale) + plugin.getMsg(CommandMessage.UPDATELEADERBOARDS_UPDATED, locale)));
+                plugin.getScheduler().executeSync(() -> {
+                    sender.sendMessage(plugin.getPrefix(locale) + plugin.getMsg(CommandMessage.UPDATELEADERBOARDS_UPDATED, locale));
+                    if (samples > 1) {
+                        sender.sendMessage(plugin.getPrefix(locale) + "Average update time over " + samples + " samples: " + Math.round(avg) + " ms");
+                    }
+                });
             });
         } else {
             sender.sendMessage(plugin.getPrefix(locale) + plugin.getMsg(CommandMessage.UPDATELEADERBOARDS_ALREADY_UPDATING, locale));
@@ -313,7 +323,7 @@ public class SkillsRootCommand extends BaseCommand {
             player.sendMessage(plugin.getPrefix(locale) + plugin.getMsg(CommandMessage.CLAIMITEMS_NO_ITEMS, locale));
             return;
         }
-        UnclaimedItemsMenu.getInventory(plugin, user).open(player);
+        plugin.getScheduler().executeAtEntity(player, (task) -> UnclaimedItemsMenu.getInventory(plugin, user).open(player));
     }
 
     @Subcommand("version")
@@ -332,7 +342,7 @@ public class SkillsRootCommand extends BaseCommand {
     @CommandCompletion("@skills @sort_types")
     @Description("%desc_sources")
     public void onSources(Player player, Skill skill, @Optional SortType sortType) {
-        Map<String, Object> properties = new HashMap<>();
+        Map<String, Object> properties = new ConcurrentHashMap<>();
         properties.put("skill", skill);
         properties.put("items_per_page", 28);
         if (sortType == null) { // Use ASCENDING as default
@@ -398,17 +408,14 @@ public class SkillsRootCommand extends BaseCommand {
                 future.complete(null);
             }
         } else {
-            new BukkitRunnable() {
-                @Override
-                public void run() {
-                    try {
-                        future.complete(plugin.getStorageProvider().loadState(player.getUniqueId()));
-                    } catch (Exception e) {
-                        future.complete(null);
-                        e.printStackTrace();
-                    }
+            plugin.getScheduler().executeAsync(() -> {
+                try {
+                    future.complete(plugin.getStorageProvider().loadState(player.getUniqueId()));
+                } catch (Exception e) {
+                    future.complete(null);
+                    e.printStackTrace();
                 }
-            }.runTaskAsynchronously(plugin);
+            });
         }
         return future;
     }

@@ -16,6 +16,7 @@ import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ConfigurateLoader {
 
@@ -56,7 +57,7 @@ public class ConfigurateLoader {
             return null;
         }
 
-        Map<String, String> env = new HashMap<>();
+        Map<String, String> env = new ConcurrentHashMap<>();
         env.put("create", "true");
         if ("jar".equals(uri.getScheme())) {
             try (FileSystem ignored = FileSystems.newFileSystem(uri, env)) {
@@ -135,7 +136,13 @@ public class ConfigurateLoader {
     public int countMissing(ConfigurationNode embedded, ConfigurationNode user) {
         int count = 0;
         Stack<ConfigurationNode> stack = new Stack<>();
-        stack.addAll(embedded.childrenMap().values());
+        List<? extends ConfigurationNode> nonExperimentalNodes = embedded.childrenMap()
+                .values()
+                .stream()
+                .filter(n -> !String.valueOf(n.key()).equals("experimental")) // Don't check the experimental section since we don't want to save this
+                .toList();
+
+        stack.addAll(nonExperimentalNodes);
         while (!stack.isEmpty()) {
             ConfigurationNode node = stack.pop();
             if (node.isMap()) { // A section node, push children to search

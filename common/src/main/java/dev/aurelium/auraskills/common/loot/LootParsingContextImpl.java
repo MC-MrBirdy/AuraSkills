@@ -3,14 +3,15 @@ package dev.aurelium.auraskills.common.loot;
 import dev.aurelium.auraskills.api.config.ConfigNode;
 import dev.aurelium.auraskills.api.loot.LootContext;
 import dev.aurelium.auraskills.api.loot.LootParsingContext;
+import dev.aurelium.auraskills.api.loot.LootRequirements;
 import dev.aurelium.auraskills.api.loot.LootValues;
 import dev.aurelium.auraskills.common.api.implementation.ApiConfigNode;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class LootParsingContextImpl implements LootParsingContext {
 
@@ -21,15 +22,15 @@ public class LootParsingContextImpl implements LootParsingContext {
     }
 
     @Override
-    public LootValues parseValues(ConfigNode apiConfig) {
+    public LootValues parseValues(ConfigNode apiConfig, LootRequirements requirements) {
         ConfigurationNode config = ((ApiConfigNode) apiConfig).getBacking();
         int weight = config.node("weight").getInt(10);
         String message = config.node("message").getString("");
-        return new LootValues(weight, message, parseContexts(config), parseOptions(config));
+        return new LootValues(weight, message, parseContexts(config), parseOptions(config), requirements);
     }
 
     public Map<String, Set<LootContext>> parseContexts(ConfigurationNode config) {
-        Map<String, Set<LootContext>> contexts = new HashMap<>();
+        Map<String, Set<LootContext>> contexts = new ConcurrentHashMap<>();
         for (String contextKey : manager.getContextKeySet()) {
             if (!config.node(contextKey).virtual()) {
                 ContextProvider contextProvider = manager.getContextProvider(contextKey); // Get the manager
@@ -51,7 +52,7 @@ public class LootParsingContextImpl implements LootParsingContext {
     }
 
     public Map<String, Object> parseOptions(ConfigurationNode config) {
-        Map<String, Object> options = new HashMap<>();
+        Map<String, Object> options = new ConcurrentHashMap<>();
         for (String optionKey : manager.getLootOptionKeys()) {
             if (!config.node(optionKey).virtual()) {
                 Object option = config.node(optionKey).raw();

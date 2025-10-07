@@ -1,11 +1,11 @@
 package dev.aurelium.auraskills.bukkit.requirement;
 
+import com.google.common.collect.Sets;
 import dev.aurelium.auraskills.api.item.ModifierType;
 import dev.aurelium.auraskills.api.registry.NamespacedId;
 import dev.aurelium.auraskills.api.skill.Skill;
 import dev.aurelium.auraskills.api.stat.Stat;
 import dev.aurelium.auraskills.bukkit.AuraSkills;
-import dev.aurelium.auraskills.bukkit.requirement.blocks.*;
 import dev.aurelium.auraskills.common.config.ConfigurateLoader;
 import dev.aurelium.auraskills.common.scheduler.TaskRunnable;
 import org.bukkit.Material;
@@ -17,6 +17,7 @@ import org.spongepowered.configurate.serialize.TypeSerializerCollection;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 public class RequirementManager implements Listener {
@@ -27,7 +28,7 @@ public class RequirementManager implements Listener {
     private final AuraSkills plugin;
 
     public RequirementManager(AuraSkills plugin) {
-        errorMessageTimer = new HashMap<>();
+        errorMessageTimer = new ConcurrentHashMap<>();
         this.plugin = plugin;
         load();
         loadBlocks();
@@ -39,7 +40,7 @@ public class RequirementManager implements Listener {
         try {
             ConfigurationNode config = loader.loadUserFile("config.yml");
 
-            this.globalRequirements = new HashSet<>();
+            this.globalRequirements = Sets.newConcurrentHashSet();
             int loaded = 0;
             for (ModifierType type : ModifierType.values()) {
                 List<String> list = config.node("requirement", type.name().toLowerCase(Locale.ROOT), "global").getList(String.class, new ArrayList<>());
@@ -60,7 +61,7 @@ public class RequirementManager implements Listener {
                                 plugin.logger().warn("Error parsing global skill " + type.name().toLowerCase(Locale.ROOT) + " requirement skill level pair with text " + requirementText);
                             }
                         }
-                        GlobalRequirement globalRequirement = new GlobalRequirement(type, material, requirements);
+                        GlobalRequirement globalRequirement = new GlobalRequirement(type, material, Map.copyOf(requirements));
                         globalRequirements.add(globalRequirement);
                         loaded++;
                     } catch (IllegalArgumentException e) {
@@ -78,6 +79,10 @@ public class RequirementManager implements Listener {
         }
     }
 
+    public BukkitLootRequirements getLootRequirements(ConfigurationNode config) {
+        return new BukkitLootRequirements(parseTypes(config.node("requirements").childrenList()));
+    }
+
     public void loadBlocks() {
         ConfigurateLoader loader = new ConfigurateLoader(plugin, TypeSerializerCollection.builder().build());
         try {
@@ -91,39 +96,7 @@ public class RequirementManager implements Listener {
                 boolean allowBreak = blockNode.node("allow_break").getBoolean(false);
                 boolean allowHarvest = blockNode.node("allow_harvest").getBoolean(false);
 
-                List<? extends ConfigurationNode> requirementNodes = blockNode.node("requirements").childrenList();
-                List<RequirementNode> nodes = new ArrayList<>();
-
-                for (ConfigurationNode requirementNode : requirementNodes) {
-                    String type = requirementNode.node("type").getString("");
-                    String message = requirementNode.node("message").getString("");
-
-                    switch (type) {
-                        case "skill_level" -> {
-                            Skill skill = plugin.getSkillRegistry().getOrNull(NamespacedId.fromDefault(requirementNode.node("skill").getString("").toLowerCase(Locale.ROOT)));
-                            int level = requirementNode.node("level").getInt();
-                            nodes.add(new SkillNode(plugin, skill, level, message));
-                        }
-                        case "permission" -> {
-                            String permission = requirementNode.node("permission").getString();
-                            nodes.add(new PermissionNode(plugin, permission, message));
-                        }
-                        case "excluded_world" -> {
-                            String[] worlds = requirementNode.node("worlds").getList(String.class, new ArrayList<>()).toArray(new String[0]);
-                            nodes.add(new ExcludedWorldNode(plugin, worlds, message));
-                        }
-                        case "stat" -> {
-                            Stat stat = plugin.getStatManager().getEnabledStats().stream()
-                                    .filter(s -> s.getId().equals(NamespacedId.fromDefault(requirementNode.node("stat").getString("").toLowerCase(Locale.ROOT))))
-                                    .findFirst()
-                                    .orElse(null);
-                            int value = requirementNode.node("value").getInt();
-                            nodes.add(new StatNode(plugin, stat, value, message));
-                        }
-                        default -> plugin.logger().warn("Unknown requirement type: " + type);
-                    }
-                }
-
+                List<RequirementNode> nodes = parseTypes(blockNode.node("requirements").childrenList());
                 BlockRequirement blockRequirement = new BlockRequirement(material, allowPlace, allowBreak, allowHarvest, nodes);
                 blockRequirements.add(blockRequirement);
             }
@@ -136,6 +109,80 @@ public class RequirementManager implements Listener {
         }
     }
 
+    private List<RequirementNode> parseTypes(List<? extends ConfigurationNode> requirementNodes) {
+        List<RequirementNode> nodes = new ArrayList<>();
+
+        try {
+            for (ConfigurationNode requirementNode : requirementNodes) {
+                String type = requirementNode.node("type").getString("");
+                String message = requirementNode.node("message").getString("");
+
+                switch (type) {
+                    case "skill_level" -> {
+                        Skill skill = plugin.getSkillRegistry().getOrNull(NamespacedId.fromDefault(requirementNode.node("skill").getString("").toLowerCase(Locale.ROOT)));
+                        int level = requirementNode.node("level").getInt();
+                        nodes.add(new SkillNode(plugin, skill, level, message));
+                    }
+                    case "permission" -> {
+                        String permission = requirementNode.node("permission").getString();
+                        nodes.add(new PermissionNode(plugin, permission, message));
+                    }
+                    case "excluded_world" -> {
+                        String[] worlds = requirementNode.node("worlds").getList(String.class, new ArrayList<>()).toArray(new String[0]);
+                        nodes.add(new ExcludedWorldNode(plugin, worlds, message));
+                    }
+                    case "stat" -> {
+                        Stat stat = plugin.getStatManager().getEnabledStats().stream()
+                                .filter(s -> s.getId().equals(NamespacedId.fromDefault(requirementNode.node("stat").getString("").toLowerCase(Locale.ROOT))))
+                                .findFirst()
+                                .orElse(null);
+                        int value = requirementNode.node("value").getInt();
+                        nodes.add(new StatNode(plugin, stat, value, message));
+                    }
+                    case "world" -> {
+                        String world = requirementNode.node("world").getString();
+                        nodes.add(new WorldNode(plugin, world, message));
+                    }
+                    case "biome" -> {
+                        String biome = requirementNode.node("biome").getString();
+                        nodes.add(new BiomeNode(plugin, biome, message));
+                    }
+                    case "region" -> {
+                        String region = requirementNode.node("region").getString();
+                        nodes.add(new RegionNode(plugin, region, message));
+                    }
+                    case "item" -> {
+                        String item = requirementNode.node("item").getString();
+                        nodes.add(new ItemNode(plugin, item, message));
+                    }
+                    case "enchantment" -> {
+                        String enchantment = requirementNode.node("enchantment").getString();
+                        String level = requirementNode.node("level").getString();
+                        String[] levelStrings = level != null ? level.split("-") : new String[0];
+                        int[] levels = Arrays.stream(levelStrings)
+                                .mapToInt(s -> {
+                                    try {
+                                        return Integer.parseInt(s.trim());
+                                    } catch (NumberFormatException e) {
+                                        return -1;
+                                    }
+                                })
+                                .toArray();
+                        int levelMin = levels.length >= 1 ? levels[0] : -1;
+                        int levelMax = levels.length >= 2 ? levels[1] : levelMin;
+                        nodes.add(new EnchantmentNode(plugin, enchantment, levelMin, levelMax, message));
+                    }
+                    default -> plugin.logger().warn("Unknown requirement type: " + type);
+                }
+            }
+        } catch (IOException e) {
+            plugin.logger().warn("Error loading requirements: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        return nodes;
+    }
+
     public Set<GlobalRequirement> getGlobalRequirements() {
         return globalRequirements;
     }
@@ -145,7 +192,7 @@ public class RequirementManager implements Listener {
     }
 
     public Set<GlobalRequirement> getGlobalRequirementsType(ModifierType type) {
-        Set<GlobalRequirement> matched = new HashSet<>();
+        Set<GlobalRequirement> matched = Sets.newConcurrentHashSet();
         for (GlobalRequirement requirement : globalRequirements) {
             if (requirement.getType() == type) {
                 matched.add(requirement);
