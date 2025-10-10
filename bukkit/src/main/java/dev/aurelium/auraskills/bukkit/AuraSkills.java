@@ -26,7 +26,6 @@ import dev.aurelium.auraskills.bukkit.leaderboard.BukkitLeaderboardExclusion;
 import dev.aurelium.auraskills.bukkit.level.BukkitLevelManager;
 import dev.aurelium.auraskills.bukkit.level.XpLimiterListener;
 import dev.aurelium.auraskills.bukkit.listeners.BlockInteractions;
-import dev.aurelium.auraskills.bukkit.level.XpLimiterListener;
 import dev.aurelium.auraskills.bukkit.listeners.CriticalHandler;
 import dev.aurelium.auraskills.bukkit.listeners.DamageListener;
 import dev.aurelium.auraskills.bukkit.listeners.PlayerDeath;
