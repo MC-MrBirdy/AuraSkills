@@ -457,9 +457,17 @@ public class SkillsItem {
         meta.setLore(lore);
     }
 
-    public void removeModifierLore(Stat stat, Locale locale) {
+    public void removeModifierLore(NamespaceIdentified identified, Locale locale) {
         List<String> lore = meta.getLore();
-        if (lore != null && !lore.isEmpty()) lore.removeIf(line -> line.contains(stat.getDisplayName(locale)));
+        if (lore == null || lore.isEmpty()) return;
+
+        if (identified instanceof Stat stat) {
+            lore.removeIf(line -> line.contains(stat.getDisplayName(locale)));
+        } else if (identified instanceof Trait trait) {
+            lore.removeIf(line -> line.contains(trait.getDisplayName(locale)));
+        } else if (identified instanceof Skill skill) {
+            lore.removeIf(line -> line.contains(skill.getDisplayName(locale)));
+        }
         meta.setLore(lore);
     }
 
