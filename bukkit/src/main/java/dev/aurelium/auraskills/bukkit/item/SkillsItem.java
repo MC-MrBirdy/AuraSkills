@@ -511,6 +511,14 @@ public class SkillsItem {
         meta.setLore(lore);
     }
 
+    public void removeMultiplierLore(ModifierType type, Locale locale) {
+        List<String> lore = meta.getLore();
+        if (lore == null || lore.isEmpty()) return;
+
+        lore.removeIf(line -> line.contains(type.name().toLowerCase(Locale.ROOT)));
+        meta.setLore(lore);
+    }
+
     public void addRequirementLore(ModifierType type, Skill skill, int level, Locale locale) {
         String text = TextUtil.replace(plugin.getMsg(CommandMessage.valueOf(type.name() + "_REQUIREMENT_ADD_LORE"), locale), "{skill}", skill.getDisplayName(locale), "{level}", String.valueOf(level));
         List<String> lore;

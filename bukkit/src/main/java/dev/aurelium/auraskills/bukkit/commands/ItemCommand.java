@@ -70,7 +70,7 @@ public class ItemCommand extends BaseCommand {
     @CommandCompletion("@stats false|true @players")
     @CommandPermission("auraskills.command.item.modifier")
     @Description("%desc_item_modifier_remove")
-    public void onItemModifierRemoveOther(CommandIssuer issuer, Stat stat, @Default("true") boolean lore,
+    public void onItemModifierRemove(CommandIssuer issuer, Stat stat, @Default("true") boolean lore,
             @Flags("other") @CommandPermission("auraskills.command.item.modifier.other") @Optional Player other) {
         Locale locale = plugin.getLocale(issuer);
         if (other == null) {
@@ -93,7 +93,7 @@ public class ItemCommand extends BaseCommand {
     @CommandCompletion("@players")
     @CommandPermission("auraskills.command.item.modifier")
     @Description("%desc_item_modifier_list")
-    public void onItemModifierListOther(CommandIssuer issuer, @Flags("other") @CommandPermission("auraskills.command.item.modifier.other") @Optional Player other) {
+    public void onItemModifierList(CommandIssuer issuer, @Flags("other") @CommandPermission("auraskills.command.item.modifier.other") @Optional Player other) {
         Locale locale = plugin.getLocale(issuer);
         if (other == null) {
             if (issuer.isPlayer()) {
@@ -115,7 +115,7 @@ public class ItemCommand extends BaseCommand {
     @CommandCompletion("@players")
     @CommandPermission("auraskills.command.item.modifier")
     @Description("%desc_item_modifier_removeall")
-    public void onItemModifierRemoveAllOther(CommandIssuer issuer, @Flags("other") @CommandPermission("auraskills.command.item.modifier.other") @Optional Player other) {
+    public void onItemModifierRemoveAll(CommandIssuer issuer, @Flags("other") @CommandPermission("auraskills.command.item.modifier.other") @Optional Player other) {
         Locale locale = plugin.getLocale(issuer);
         if (other == null) {
             if (issuer.isPlayer()) {
@@ -137,7 +137,7 @@ public class ItemCommand extends BaseCommand {
     @CommandCompletion("@traits @nothing @modifier_operations false|true false|true @players")
     @CommandPermission("auraskills.command.item.modifier")
     @Description("%desc_item_trait_add")
-    public void onItemTraitAddOther(CommandIssuer issuer, Trait trait, double value, @Default("add") Operation operation, @Default("true") boolean lore,
+    public void onItemTraitAdd(CommandIssuer issuer, Trait trait, double value, @Default("add") Operation operation, @Default("true") boolean lore,
             @Default("false") boolean overwrite, @Flags("other") @CommandPermission("auraskills.command.item.modifier.other") @Optional Player other) {
         Locale locale = plugin.getLocale(issuer);
         if (other == null) {
@@ -160,7 +160,7 @@ public class ItemCommand extends BaseCommand {
     @CommandCompletion("@traits false|true @players")
     @CommandPermission("auraskills.command.item.modifier")
     @Description("%desc_item_trait_remove")
-    public void onItemTraitRemoveOther(CommandIssuer issuer, Trait trait, @Default("true") boolean lore, @Flags("other") @CommandPermission("auraskills.command.item.modifier.other") @Optional Player other) {
+    public void onItemTraitRemove(CommandIssuer issuer, Trait trait, @Default("true") boolean lore, @Flags("other") @CommandPermission("auraskills.command.item.modifier.other") @Optional Player other) {
         Locale locale = plugin.getLocale(issuer);
         if (other == null) {
             if (issuer.isPlayer()) {
@@ -182,7 +182,7 @@ public class ItemCommand extends BaseCommand {
     @CommandCompletion("@players")
     @CommandPermission("auraskills.command.item.modifier")
     @Description("%desc_item_trait_list")
-    public void onItemTraitListOther(CommandIssuer issuer, @Flags("other") @CommandPermission("auraskills.command.item.modifier.other") @Optional Player other) {
+    public void onItemTraitList(CommandIssuer issuer, @Flags("other") @CommandPermission("auraskills.command.item.modifier.other") @Optional Player other) {
         Locale locale = plugin.getLocale(issuer);
         if (other == null) {
             if (issuer.isPlayer()) {
@@ -204,7 +204,7 @@ public class ItemCommand extends BaseCommand {
     @CommandCompletion("@players")
     @CommandPermission("auraskills.command.item.modifier")
     @Description("%desc_item_trait_removeall")
-    public void onItemTraitRemoveAllOther(CommandIssuer issuer, @Flags("other") @CommandPermission("auraskills.command.item.modifier.other") @Optional Player other) {
+    public void onItemTraitRemoveAll(CommandIssuer issuer, @Flags("other") @CommandPermission("auraskills.command.item.modifier.other") @Optional Player other) {
         Locale locale = plugin.getLocale(issuer);
         if (other == null) {
             if (issuer.isPlayer()) {
@@ -223,22 +223,22 @@ public class ItemCommand extends BaseCommand {
     }
 
     @Subcommand("requirement add")
-    @CommandCompletion("@skills @nothing false|true @players")
+    @CommandCompletion("@skills @nothing false|true false|true @players")
     @CommandPermission("auraskills.command.item.requirement")
     @Description("%desc_item_requirement_add")
-    public void onItemRequirementAddOther(CommandIssuer issuer, Skill skill, int level, @Default("true") boolean lore,
-            @Flags("other") @CommandPermission("auraskills.command.item.requirement.other") @Optional Player other) {
+    public void onItemRequirementAdd(CommandIssuer issuer, Skill skill, int level, @Default("true") boolean lore,
+            @Default("false") boolean overwrite, @Flags("other") @CommandPermission("auraskills.command.item.requirement.other") @Optional Player other) {
         Locale locale = plugin.getLocale(issuer);
         if (other == null) {
             if (issuer.isPlayer()) {
                 Player player = issuer.getIssuer();
-                baseItemCommand.onItemRequirementAdd(issuer, player, skill, level, lore);
+                baseItemCommand.onItemRequirementAdd(issuer, player, skill, level, lore, overwrite);
             } else {
                 issuer.sendMessage(plugin.getMsg(ACFCoreMessage.NOT_ALLOWED_ON_CONSOLE, locale));
             }
         } else {
             if (baseItemCommand.checkItemHeld(other)) {
-                baseItemCommand.onItemRequirementAdd(issuer, other, skill, level, lore);
+                baseItemCommand.onItemRequirementAdd(issuer, other, skill, level, lore, overwrite);
             } else {
                 issuer.sendMessage(plugin.getMsg(ACFCoreMessage.ERROR_PERFORMING_COMMAND, locale));
             }
@@ -249,7 +249,7 @@ public class ItemCommand extends BaseCommand {
     @CommandCompletion("@skills false|true @players")
     @CommandPermission("auraskills.command.item.requirement")
     @Description("%desc_item_requirement_remove")
-    public void onItemRequirementRemoveOther(CommandIssuer issuer, Skill skill, @Default("true") boolean lore,
+    public void onItemRequirementRemove(CommandIssuer issuer, Skill skill, @Default("true") boolean lore,
             @Flags("other") @CommandPermission("auraskills.command.item.requirement.other") @Optional Player other) {
         Locale locale = plugin.getLocale(issuer);
         if (other == null) {
@@ -272,7 +272,7 @@ public class ItemCommand extends BaseCommand {
     @CommandCompletion("@players")
     @CommandPermission("auraskills.command.item.requirement")
     @Description("%desc_item_requirement_list")
-    public void onItemRequirementListOther(CommandIssuer issuer, @Flags("other") @CommandPermission("auraskills.command.item.requirement.other") @Optional Player other) {
+    public void onItemRequirementList(CommandIssuer issuer, @Flags("other") @CommandPermission("auraskills.command.item.requirement.other") @Optional Player other) {
         Locale locale = plugin.getLocale(issuer);
         if (other == null) {
             if (issuer.isPlayer()) {
@@ -294,7 +294,7 @@ public class ItemCommand extends BaseCommand {
     @CommandCompletion("@players")
     @CommandPermission("auraskills.command.item.requirement")
     @Description("%desc_item_requirement_removeall")
-    public void onItemRequirementRemoveAllOther(CommandIssuer issuer, @Flags("other") @CommandPermission("auraskills.command.item.requirement.other") @Optional Player other) {
+    public void onItemRequirementRemoveAll(CommandIssuer issuer, @Flags("other") @CommandPermission("auraskills.command.item.requirement.other") @Optional Player other) {
         Locale locale = plugin.getLocale(issuer);
         if (other == null) {
             if (issuer.isPlayer()) {
@@ -316,7 +316,7 @@ public class ItemCommand extends BaseCommand {
     @CommandCompletion("@skills_global @nothing true|false true|false @players")
     @CommandPermission("auraskills.command.item.multiplier")
     @Description("%desc_item_multiplier_add")
-    public void onItemMultiplierAddOther(CommandIssuer issuer, String target, double value, @Default("true") boolean lore, @Default("false") boolean overwrite,
+    public void onItemMultiplierAdd(CommandIssuer issuer, String target, double value, @Default("true") boolean lore, @Default("false") boolean overwrite,
             @Flags("other") @CommandPermission("auraskills.command.item.multiplier.other") @Optional Player other) {
         Locale locale = plugin.getLocale(issuer);
         if (other == null) {
@@ -336,21 +336,21 @@ public class ItemCommand extends BaseCommand {
     }
 
     @Subcommand("multiplier remove")
-    @CommandCompletion("@skills_global @players")
+    @CommandCompletion("@skills_global true|false @players")
     @CommandPermission("auraskills.command.item.multiplier")
     @Description("%desc_item_multiplier_remove")
-    public void onItemMultiplierRemoveOther(CommandIssuer issuer, String target, @Flags("other") @CommandPermission("auraskills.command.item.multiplier.other") @Optional Player other) {
+    public void onItemMultiplierRemove(CommandIssuer issuer, String target, @Default("true") boolean lore, @Flags("other") @CommandPermission("auraskills.command.item.multiplier.other") @Optional Player other) {
         Locale locale = plugin.getLocale(issuer);
         if (other == null) {
             if (issuer.isPlayer()) {
                 Player player = issuer.getIssuer();
-                baseItemCommand.onItemMultiplierRemove(issuer, player, target);
+                baseItemCommand.onItemMultiplierRemove(issuer, player, target, lore);
             } else {
                 issuer.sendMessage(plugin.getMsg(ACFCoreMessage.NOT_ALLOWED_ON_CONSOLE, locale));
             }
         } else {
             if (baseItemCommand.checkItemHeld(other)) {
-                baseItemCommand.onItemMultiplierRemove(issuer, other, target);
+                baseItemCommand.onItemMultiplierRemove(issuer, other, target, lore);
             } else {
                 issuer.sendMessage(plugin.getMsg(ACFCoreMessage.ERROR_PERFORMING_COMMAND, locale));
             }
@@ -361,7 +361,7 @@ public class ItemCommand extends BaseCommand {
     @CommandCompletion("@players")
     @CommandPermission("auraskills.command.item.multiplier")
     @Description("%desc_item_multiplier_list")
-    public void onItemMultiplierListOther(CommandIssuer issuer, @Flags("other") @CommandPermission("auraskills.command.item.multiplier.other") @Optional Player other) {
+    public void onItemMultiplierList(CommandIssuer issuer, @Flags("other") @CommandPermission("auraskills.command.item.multiplier.other") @Optional Player other) {
         Locale locale = plugin.getLocale(issuer);
         if (other == null) {
             if (issuer.isPlayer()) {
@@ -383,7 +383,7 @@ public class ItemCommand extends BaseCommand {
     @CommandCompletion("@players")
     @CommandPermission("auraskills.command.item.multiplier")
     @Description("%desc_item_multiplier_removeall")
-    public void onItemMultiplierRemoveAllOther(CommandIssuer issuer, @Flags("other") @CommandPermission("auraskills.command.item.multiplier.other") @Optional Player other) {
+    public void onItemMultiplierRemoveAll(CommandIssuer issuer, @Flags("other") @CommandPermission("auraskills.command.item.multiplier.other") @Optional Player other) {
         Locale locale = plugin.getLocale(issuer);
         if (other == null) {
             if (issuer.isPlayer()) {
